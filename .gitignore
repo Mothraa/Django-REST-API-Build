@@ -1,0 +1,45 @@
+# virtual environment python subfolder
+.venv/
+.env/
+venv/
+env/
+pipfile
+pipfile.lock
+
+# visual studio code
+.vscode/
+
+# Windows thumbnails and links
+Thumbs.db
+._*
+*.lnk
+
+# backups
+*.bak
+
+# subfolders
+__pycache__/
+.result/
+.output/
+output/
+log/
+.log/
+
+# ignore all log files
+*.log
+
+# tests
+.coverage/
+htmlcov/
+.pytest_cache/
+assets/
+
+# output subforlders
+.output/
+output/
+
+# media
+media/
+
+# databases
+*.sqlite3
