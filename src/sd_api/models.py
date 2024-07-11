@@ -1,9 +1,8 @@
 import uuid
-
 from django.db import models
 from src.sd_auth.models import CustomUser
 from django.core import serializers
-# https://docs.djangoproject.com/fr/5.0/topics/serialization/
+
 
 class Choices:
     # Project type
@@ -49,15 +48,27 @@ class Choices:
     ]
 
 
-class Project(models.Model):
+class TimestampModel(models.Model):
+    created_time = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        abstract = True
+
+
+class AuthorModel(models.Model):
+    author = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='%(class)ss')
+
+    class Meta:
+        abstract = True
+
+
+class Project(TimestampModel, AuthorModel):
     name = models.CharField(max_length=100)
     description = models.TextField()
     type = models.CharField(max_length=3, choices=Choices.PROJECT_TYPE_CHOICES)
-    author = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='projects')
-    created_time = models.DateTimeField(auto_now_add=True)
 
 
-class Issue(models.Model):
+class Issue(TimestampModel, AuthorModel):
     title = models.CharField(max_length=100)
     description = models.TextField()
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='issues')
@@ -65,16 +76,12 @@ class Issue(models.Model):
     priority = models.CharField(max_length=4, choices=Choices.PRIORITY_CHOICES, blank=False)
     tag = models.CharField(max_length=4, choices=Choices.TAG_CHOICES, blank=False)
     status = models.CharField(max_length=4, choices=Choices.STATUS_CHOICES, default=Choices.TODO)
-    author = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='created_issues')
-    created_time = models.DateTimeField(auto_now_add=True)
 
 
-class Comment(models.Model):
+class Comment(TimestampModel, AuthorModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     description = models.TextField()
     issue = models.ForeignKey(Issue, on_delete=models.CASCADE, related_name='comments')
-    author = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='comments')
-    created_time = models.DateTimeField(auto_now_add=True)
 
 
 class Contributor(models.Model):
