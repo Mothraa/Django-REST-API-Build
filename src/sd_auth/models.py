@@ -1,19 +1,23 @@
-from django.contrib.auth.models import BaseUserManager, AbstractUser
+from django.contrib.auth.models import BaseUserManager, AbstractBaseUser, PermissionsMixin
 from django.db import models
 from django.core.validators import MaxValueValidator, MinValueValidator
 
 
 class CustomUserManager(BaseUserManager):
-    def create_user(self, email, password=None):  # **kwargs
-        if not email:
-            raise ValueError("Entrer un email")
+    def create_user(self, username, password=None, **extra_fields):
+        if not username:
+            raise ValueError("Entrer un nom d'utilisateur")
 
-        user = self.model(
-            email=self.normalize_email(email)
-        )
+        user = self.model(username=username, **extra_fields)
         user.set_password(password)
-        user.save()
+        user.save(using=self._db)
         return user
+
+    def create_superuser(self, username, password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        superuser = self.create_user(username, password, **extra_fields)
+        return superuser
 
     def modify_user(self, emalil, password=None):
         # pour conformité RGPD
@@ -23,30 +27,24 @@ class CustomUserManager(BaseUserManager):
         # autoriser la suppression pour conformité RGPD
         pass
 
-    def create_superuser(self, email, password=None):
-        user = self.create_user(email=email, password=password)
-        user.is_superuser = True
-        user.is_staff = True
-        user.save()
-        return user
 
+class CustomUser(AbstractBaseUser, PermissionsMixin):
 
-class CustomUser(AbstractUser):
-
-    # utilisation de l'email comme identifiant à la place du username par défaut dans AbstractUser
+    username = models.CharField(max_length=150, unique=True, blank=False)
     # email = models.EmailField(max_length=150, unique=True, blank=False)
-
-    # username = None
-    # USERNAME_FIELD = "email"
-    # REQUIRED_FIELDS = []
-
-    # age minimal RGPD : 15 ans // plutot mettre un champ j'ai plus de 15 ans OUI/NON ?
-    age = models.PositiveIntegerField(validators=[MinValueValidator(15), MaxValueValidator(120)])
-
-    can_be_contacted = models.BooleanField(blank=False)  # default=False
-    can_data_be_shared = models.BooleanField(blank=False)  # default=False
-
-    # nickname = models.CharField(max_length=80, unique=True, blank=False, verbose_name='Pseudo')
-    # profil_photo = models.ImageField(verbose_name='Photo de profil')
-
+    age = models.PositiveIntegerField(validators=[MinValueValidator(15), MaxValueValidator(120)],
+                                      blank=True,
+                                      null=True)
+    can_be_contacted = models.BooleanField(blank=False, default=False)
+    can_data_be_shared = models.BooleanField(blank=False, default=False)
+    is_staff = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    # last_login
     objects = CustomUserManager()
+
+    USERNAME_FIELD = 'username'
+    REQUIRED_FIELDS = []
+
+    def __str__(self):
+        return self.username
