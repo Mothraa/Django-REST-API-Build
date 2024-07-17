@@ -19,22 +19,20 @@ class CustomUserManager(BaseUserManager):
         superuser = self.create_user(username, password, **extra_fields)
         return superuser
 
-    def modify_user(self, emalil, password=None):
+    def modify_user(self, username, password=None):
         # pour conformité RGPD
         pass
 
-    def delete_user(self, email, password=None, delete_confirmation=False):
+    def delete_user(self, username, password=None, delete_confirmation=False):
         # autoriser la suppression pour conformité RGPD
         pass
 
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
-
     username = models.CharField(max_length=150, unique=True, blank=False)
     # email = models.EmailField(max_length=150, unique=True, blank=False)
     age = models.PositiveIntegerField(validators=[MinValueValidator(15), MaxValueValidator(120)],
-                                      blank=True,
-                                      null=True)
+                                      blank=False)
     can_be_contacted = models.BooleanField(blank=False, default=False)
     can_data_be_shared = models.BooleanField(blank=False, default=False)
     is_staff = models.BooleanField(default=False)
