@@ -1,6 +1,6 @@
 import uuid
 from django.db import models
-from src.sd_auth.models import CustomUser
+from sd_auth.models import CustomUser
 from django.core import serializers
 
 
