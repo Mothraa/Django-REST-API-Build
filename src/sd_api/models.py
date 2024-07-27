@@ -8,9 +8,11 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 
 
 class CustomUserManager(BaseUserManager):
-    def create_user(self, username, password=None, **extra_fields):
+    def create_user(self, username, age=None, password=None, **extra_fields):
         if not username:
             raise ValueError("Entrer un nom d'utilisateur")
+        if age is None and not extra_fields.get('is_superuser', True):
+            raise ValueError("L'âge est obligatoire")
         user = self.model(username=username, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
@@ -19,24 +21,24 @@ class CustomUserManager(BaseUserManager):
     def create_superuser(self, username, password=None, **extra_fields):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('age', '99')
+        extra_fields.setdefault('age', None)
         superuser = self.create_user(username, password, **extra_fields)
         return superuser
 
-    def modify_user(self, username, password=None):
-        # pour conformité RGPD
-        pass
+    # def modify_user(self, username, password=None):
+    #     # pour conformité RGPD
+    #     pass
 
-    def delete_user(self, username, password=None, delete_confirmation=False):
-        # autoriser la suppression pour conformité RGPD
-        pass
+    # def delete_user(self, username, password=None, delete_confirmation=False):
+    #     # autoriser la suppression pour conformité RGPD
+    #     pass
 
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
     username = models.CharField(max_length=150, unique=True, blank=False)
     # email = models.EmailField(max_length=150, unique=True, blank=False)
     age = models.PositiveIntegerField(validators=[MinValueValidator(15), MaxValueValidator(120)],
-                                      blank=False)
+                                      blank=False, null=True)
     can_be_contacted = models.BooleanField(blank=False, default=False)
     can_data_be_shared = models.BooleanField(blank=False, default=False)
     is_staff = models.BooleanField(default=False)
