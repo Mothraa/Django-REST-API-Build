@@ -10,6 +10,7 @@ from .serializers import (CustomUserSerializer,
                           CustomUserDetailSerializer,
                           CustomUserUpdateSerializer,
                           ProjectSerializer,
+                          ContributorSerializer,
                         #   ProjectUpdateSerializer,
                           )
 # from .permissions import IsAdminAuthenticated
@@ -91,10 +92,34 @@ class ProjectViewSet(viewsets.ModelViewSet):
         else:
             raise PermissionDenied("Vous n'avez pas la permission de modifier ce projet.")
 
-    def perform_destroy(self, request, *args, **kwargs):
-        # seul l'auteur du projet peut supprimer le projet
-        project = self.get_object()
-        if project.author == self.request.user:
-            return super().destroy(request, *args, **kwargs)
+    def perform_destroy(self, instance):
+        # Seul l'auteur du projet peut supprimer le projet
+        if instance.author == self.request.user:
+            instance.delete()
         else:
             raise PermissionDenied("Vous n'avez pas la permission de supprimer ce projet.")
+    
+    # @action(detail=True, methods=['post'])
+    # def action_perso(self):
+    #     pass
+
+
+class ContributorViewSet(viewsets.ModelViewSet):
+    serializer_class = ContributorSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        return Contributor.objects.filter(user=user)
+
+    def perform_create(self, serializer):
+        project = serializer.validated_data['project']
+        if project.author != self.request.user:
+            raise PermissionDenied("Vous ne pouvez pas ajouter de contributeurs")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        project = instance.project
+        if project.author != self.request.user:
+            raise PermissionDenied("Vous ne pouvez pas supprimer de contributeurs")
+        instance.delete()

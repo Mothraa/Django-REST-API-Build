@@ -11,8 +11,10 @@ class CustomUserManager(BaseUserManager):
     def create_user(self, username, age=None, password=None, **extra_fields):
         if not username:
             raise ValueError("Entrer un nom d'utilisateur")
-        if age is None and not extra_fields.get('is_superuser', True):
+        is_superuser = extra_fields.get('is_superuser', False)
+        if age is None and not is_superuser:
             raise ValueError("L'âge est obligatoire")
+        extra_fields['age'] = age
         user = self.model(username=username, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
