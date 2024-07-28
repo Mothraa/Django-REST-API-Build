@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CustomUser, Project, Contributor
+from .models import CustomUser, Project, Contributor, Issue, Comment
 
 
 class CustomUserSerializer(serializers.ModelSerializer):
@@ -20,7 +20,7 @@ class CustomUserSerializer(serializers.ModelSerializer):
 class CustomUserDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ['id', 'username', 'age', 'can_be_contacted', 'can_data_be_shared', 'is_active', 'is_staff', 'is_superuser']
+        fields = '__all__'
 
 
 class CustomUserUpdateSerializer(serializers.ModelSerializer):
@@ -39,5 +39,20 @@ class ProjectSerializer(serializers.ModelSerializer):
 class ContributorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contributor
-        fields = ['user', 'project', 'author', 'created_time']
+        fields = ['user', 'project']
+
+    def create(self, validated_data):
+        return Contributor.objects.create(**validated_data)
+
+class IssueSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Issue
+        fields = ['id', 'title', 'description', 'project', 'assignee', 'priority', 'tag', 'status', 'author', 'created_time']
+        read_only_fields = ['author', 'created_time']
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Comment
+        fields = ['id', 'description', 'issue', 'author', 'created_time']
         read_only_fields = ['author', 'created_time']

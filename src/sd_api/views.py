@@ -1,7 +1,7 @@
 # from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import viewsets
-from rest_framework.exceptions import PermissionDenied
+from rest_framework import viewsets, status
+from rest_framework.exceptions import PermissionDenied, NotFound
 # from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.permissions import IsAuthenticated
 
@@ -98,28 +98,81 @@ class ProjectViewSet(viewsets.ModelViewSet):
             instance.delete()
         else:
             raise PermissionDenied("Vous n'avez pas la permission de supprimer ce projet.")
-    
+
     # @action(detail=True, methods=['post'])
     # def action_perso(self):
     #     pass
 
 
-class ContributorViewSet(viewsets.ModelViewSet):
-    serializer_class = ContributorSerializer
+class ContributorViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
+    serializer_class = ContributorSerializer
+    project_serializer_class = ProjectSerializer
 
-    def get_queryset(self):
-        user = self.request.user
-        return Contributor.objects.filter(user=user)
+    def create(self, request, project_id=None):
+        user_id = request.data.get('user')
+        if user_id is None:
+            return Response({"detail": "User ID is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-    def perform_create(self, serializer):
-        project = serializer.validated_data['project']
-        if project.author != self.request.user:
+        try:
+            project = Project.objects.get(pk=project_id)
+        except Project.DoesNotExist:
+            raise NotFound("Aucun projet trouvé")
+
+        try:
+            user = CustomUser.objects.get(pk=user_id)
+        except CustomUser.DoesNotExist:
+            raise NotFound("Aucun utilisateur trouvé")
+
+        if Contributor.objects.filter(user=user, project=project).exists():
+            raise PermissionDenied("Ce contributeur est déjà ajouté au projet")
+
+        if project.author != request.user:
             raise PermissionDenied("Vous ne pouvez pas ajouter de contributeurs")
-        serializer.save()
 
-    def perform_destroy(self, instance):
-        project = instance.project
-        if project.author != self.request.user:
+        contributor = Contributor.objects.create(user=user, project=project)
+        serializer = self.serializer_class(contributor)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def destroy(self, request, project_id=None, user_id=None):
+        if user_id is None:
+            return Response({"detail": "User ID is required"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            contributor = Contributor.objects.get(user_id=user_id, project_id=project_id)
+        except Contributor.DoesNotExist:
+            raise NotFound("Aucun contributeur trouvé")
+
+        if contributor.project.author != request.user:
             raise PermissionDenied("Vous ne pouvez pas supprimer de contributeurs")
-        instance.delete()
+
+        contributor.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def list_contributors(self, request, project_id=None):
+        if project_id is None:
+            return Response({"detail": "Project ID is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            project = Project.objects.get(pk=project_id)
+        except Project.DoesNotExist:
+            raise NotFound("Aucun projet trouvé")
+
+        if project.author != request.user and not request.user.is_superuser:
+            raise PermissionDenied("Vous n'avez pas la permission de voir les contributeurs de ce projet")
+
+        contributors = Contributor.objects.filter(project=project)
+        serializer = self.serializer_class(contributors, many=True)
+        return Response(serializer.data)
+
+    def list_projects(self, request, user_id=None):
+        if user_id is None:
+            return Response({"Un ID utilisateur est requis"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = CustomUser.objects.get(pk=user_id)
+        except CustomUser.DoesNotExist:
+            raise NotFound("Aucun utilisateur trouvé")
+
+        projects = Project.objects.filter(contributors__user=user)
+        serializer = self.project_serializer_class(projects, many=True)
+        return Response(serializer.data)

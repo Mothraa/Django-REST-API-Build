@@ -14,4 +14,10 @@ urlpatterns = [
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/', include(router.urls)),
+    path('api/projects/<int:project_id>/contributors/',
+         ContributorViewSet.as_view({'get': 'list', 'post': 'create'}),
+         name='project-contributor-add'),
+    path('api/projects/<int:project_id>/contributors/<int:user_id>/',
+         ContributorViewSet.as_view({'delete': 'destroy'}),
+         name='project-contributor-remove'),
 ]
