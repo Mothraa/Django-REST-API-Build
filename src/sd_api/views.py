@@ -1,7 +1,8 @@
 # from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import viewsets, status
-from rest_framework.exceptions import PermissionDenied, NotFound
+# from rest_framework.exceptions import PermissionDenied, NotFound
+from .exceptions import CustomPermissionDenied, CustomNotFound, CustomBadRequest
 # from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.permissions import IsAuthenticated
 
@@ -11,12 +12,12 @@ from .serializers import (CustomUserSerializer,
                           CustomUserUpdateSerializer,
                           ProjectSerializer,
                           ContributorSerializer,
-                        #   ProjectUpdateSerializer,
+                          # ProjectUpdateSerializer,
                           )
 # from .permissions import IsAdminAuthenticated
+from .controllers import ValidationController
 
-
-#LoginRequiredMixin et PermissionRequiredMixin et UserPassesTestMixin
+# LoginRequiredMixin et PermissionRequiredMixin et UserPassesTestMixin
 
 # Un ModelViewset  est comparable à une super vue Django qui regroupe à la fois CreateView, UpdateView, DeleteView, ListView  et DetailView.
 # class CategoryViewset(ReadOnlyModelViewSet):
@@ -26,14 +27,12 @@ class CustomUserViewSet(viewsets.ModelViewSet):
     serializer_class = CustomUserSerializer
     detail_serializer_class = CustomUserDetailSerializer
     update_serializer_class = CustomUserUpdateSerializer
-    permission_classes = [IsAuthenticated]  # Changer pour IsAuthenticated pour permettre aux utilisateurs de mettre à jour leurs propres données
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
         if user.is_superuser or user.is_staff:
-            # Les superadmin et le staff peuvent voir la liste de tous les utilisateurs
             return CustomUser.objects.all()
-        # Les utilisateurs réguliers ne peuvent pas voir la liste des utilisateurs
         return CustomUser.objects.none()
 
     def get_serializer_class(self):
@@ -44,29 +43,15 @@ class CustomUserViewSet(viewsets.ModelViewSet):
         return self.serializer_class
 
     def perform_update(self, serializer):
-        # S'assurer que l'utilisateur ne peut mettre à jour que ses propres données, sauf s'il est administrateur
         user = self.request.user
-        if user.is_superuser:
-            # Seul le superuser peut modifier n'importe quel utilisateur
-            serializer.save()
-        else:
-            # Les utilisateurs réguliers ne peuvent mettre à jour que leurs propres données
-            if serializer.instance.pk == user.pk:
-                serializer.save()
-            else:
-                raise PermissionDenied("Vous n'avez pas la permission de modifier cet utilisateur.")
+        ValidationController.check_user_permission(user, serializer.instance)
+        serializer.save()
 
     def destroy(self, request, *args, **kwargs):
-        # Seul le superadmin peut supprimer un compte. Un compte doit pouvoir s'autodétruire
         user = self.request.user
         instance = self.get_object()
-
-        if user.is_superuser or instance.pk == user.pk:
-            # Les superadmin peuvent supprimer n'importe quel compte
-            # Les utilisateurs réguliers peuvent supprimer leur propre compte
-            return super().destroy(request, *args, **kwargs)
-        else:
-            raise PermissionDenied("Vous n'avez pas la permission de supprimer cet utilisateur.")
+        ValidationController.check_user_delete_permission(user, instance)
+        return super().destroy(request, *args, **kwargs)
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -81,23 +66,16 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         project = serializer.save(author=self.request.user)
-        # ajoute l'utilisateur comme contributeur
         Contributor.objects.create(user=self.request.user, project=project)
 
     def perform_update(self, serializer):
-        # seul l'auteur du projet peut le modifier
         project = self.get_object()
-        if project.author == self.request.user:
-            serializer.save()
-        else:
-            raise PermissionDenied("Vous n'avez pas la permission de modifier ce projet.")
+        ValidationController.check_project_permission(self.request.user, project)
+        serializer.save()
 
     def perform_destroy(self, instance):
-        # Seul l'auteur du projet peut supprimer le projet
-        if instance.author == self.request.user:
-            instance.delete()
-        else:
-            raise PermissionDenied("Vous n'avez pas la permission de supprimer ce projet.")
+        ValidationController.check_project_permission(self.request.user, instance)
+        instance.delete()
 
     # @action(detail=True, methods=['post'])
     # def action_perso(self):
@@ -110,69 +88,58 @@ class ContributorViewSet(viewsets.ViewSet):
     project_serializer_class = ProjectSerializer
 
     def create(self, request, project_id=None):
-        user_id = request.data.get('user')
-        if user_id is None:
-            return Response({"detail": "User ID is required"}, status=status.HTTP_400_BAD_REQUEST)
-
         try:
+            ValidationController.validate_project_id(project_id)
+            user_id = request.data.get('user')
+            ValidationController.validate_user_id(user_id)
+
+
             project = Project.objects.get(pk=project_id)
-        except Project.DoesNotExist:
-            raise NotFound("Aucun projet trouvé")
-
-        try:
             user = CustomUser.objects.get(pk=user_id)
-        except CustomUser.DoesNotExist:
-            raise NotFound("Aucun utilisateur trouvé")
 
-        if Contributor.objects.filter(user=user, project=project).exists():
-            raise PermissionDenied("Ce contributeur est déjà ajouté au projet")
+            ValidationController.check_contributor_exist(user, project)
+            ValidationController.check_project_permission(request.user, project)
 
-        if project.author != request.user:
-            raise PermissionDenied("Vous ne pouvez pas ajouter de contributeurs")
+            contributor = Contributor.objects.create(user=user, project=project)
+            serializer = self.serializer_class(contributor)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-        contributor = Contributor.objects.create(user=user, project=project)
-        serializer = self.serializer_class(contributor)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except (CustomNotFound, CustomPermissionDenied, CustomBadRequest) as e:
+            return Response({"detail": str(e)}, status=e.status_code)
 
     def destroy(self, request, project_id=None, user_id=None):
-        if user_id is None:
-            return Response({"detail": "User ID is required"}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            contributor = Contributor.objects.get(user_id=user_id, project_id=project_id)
-        except Contributor.DoesNotExist:
-            raise NotFound("Aucun contributeur trouvé")
+            ValidationController.validate_project_id(project_id)
+            ValidationController.validate_user_id(user_id)
 
-        if contributor.project.author != request.user:
-            raise PermissionDenied("Vous ne pouvez pas supprimer de contributeurs")
+            contributor = ValidationController.get_contributor(project_id, user_id)
+            ValidationController.check_contributor_permission(request.user, contributor)
+            contributor.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
 
-        contributor.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        except (CustomNotFound, CustomPermissionDenied, CustomBadRequest) as e:
+            return Response({"detail": str(e)}, status=e.status_code)
 
     def list_contributors(self, request, project_id=None):
-        if project_id is None:
-            return Response({"detail": "Project ID is required"}, status=status.HTTP_400_BAD_REQUEST)
-
         try:
+            ValidationController.validate_project_id(project_id)
             project = Project.objects.get(pk=project_id)
-        except Project.DoesNotExist:
-            raise NotFound("Aucun projet trouvé")
+            ValidationController.check_project_permission(request.user, project)
 
-        if project.author != request.user and not request.user.is_superuser:
-            raise PermissionDenied("Vous n'avez pas la permission de voir les contributeurs de ce projet")
+            contributors = Contributor.objects.filter(project=project)
+            serializer = self.serializer_class(contributors, many=True)
+            return Response(serializer.data)
 
-        contributors = Contributor.objects.filter(project=project)
-        serializer = self.serializer_class(contributors, many=True)
-        return Response(serializer.data)
+        except (CustomNotFound, CustomPermissionDenied, CustomBadRequest) as e:
+            return Response({"detail": str(e)}, status=e.status_code)
 
     def list_projects(self, request, user_id=None):
-        if user_id is None:
-            return Response({"Un ID utilisateur est requis"}, status=status.HTTP_400_BAD_REQUEST)
-
         try:
+            ValidationController.validate_user_id(user_id)
             user = CustomUser.objects.get(pk=user_id)
-        except CustomUser.DoesNotExist:
-            raise NotFound("Aucun utilisateur trouvé")
+            projects = Project.objects.filter(contributors__user=user)
+            serializer = self.project_serializer_class(projects, many=True)
+            return Response(serializer.data)
 
-        projects = Project.objects.filter(contributors__user=user)
-        serializer = self.project_serializer_class(projects, many=True)
-        return Response(serializer.data)
+        except (CustomNotFound, CustomBadRequest) as e:
+            return Response({"detail": str(e)}, status=e.status_code)

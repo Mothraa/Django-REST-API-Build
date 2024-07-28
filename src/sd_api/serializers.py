@@ -44,6 +44,7 @@ class ContributorSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         return Contributor.objects.create(**validated_data)
 
+
 class IssueSerializer(serializers.ModelSerializer):
     class Meta:
         model = Issue
