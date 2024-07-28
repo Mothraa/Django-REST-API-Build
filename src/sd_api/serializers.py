@@ -20,7 +20,8 @@ class CustomUserSerializer(serializers.ModelSerializer):
 class CustomUserDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = '__all__'
+        # fields = '__all__'
+        fields = ['id', 'username', 'age', 'can_be_contacted', 'can_data_be_shared', 'is_active', 'created_at']
 
 
 class CustomUserUpdateSerializer(serializers.ModelSerializer):
@@ -40,9 +41,6 @@ class ContributorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contributor
         fields = ['user', 'project']
-
-    def create(self, validated_data):
-        return Contributor.objects.create(**validated_data)
 
 
 class IssueSerializer(serializers.ModelSerializer):
