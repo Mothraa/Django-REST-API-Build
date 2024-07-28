@@ -87,12 +87,10 @@ class ContributorViewSet(viewsets.ViewSet):
     serializer_class = ContributorSerializer
     project_serializer_class = ProjectSerializer
 
-    def create(self, request, project_id=None):
+    def create(self, request, project_id=None, user_id=None):
         try:
             ValidationController.validate_project_id(project_id)
-            user_id = request.data.get('user')
             ValidationController.validate_user_id(user_id)
-
 
             project = Project.objects.get(pk=project_id)
             user = CustomUser.objects.get(pk=user_id)
