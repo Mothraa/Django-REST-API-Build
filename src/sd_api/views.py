@@ -1,4 +1,3 @@
-# from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import viewsets, status
 # from rest_framework.exceptions import PermissionDenied, NotFound
@@ -14,12 +13,11 @@ from .serializers import (CustomUserSerializer,
                           ContributorSerializer,
                           # ProjectUpdateSerializer,
                           )
-# from .permissions import IsAdminAuthenticated
 from .controllers import ValidationController
 
 # LoginRequiredMixin et PermissionRequiredMixin et UserPassesTestMixin
 
-# Un ModelViewset  est comparable à une super vue Django qui regroupe à la fois CreateView, UpdateView, DeleteView, ListView  et DetailView.
+# Un ModelViewset  est comparable à une super vue Django qui regroupe à la fois CreateView, UpdateView, DeleteView, ListView et DetailView.
 # class CategoryViewset(ReadOnlyModelViewSet):
 
 
@@ -89,6 +87,7 @@ class ContributorViewSet(viewsets.ViewSet):
 
     def create(self, request, project_id=None, user_id=None):
         try:
+
             ValidationController.validate_project_id(project_id)
             ValidationController.validate_user_id(user_id)
 
