@@ -14,6 +14,7 @@ from .serializers import (CustomUserSerializer,
                           # ProjectUpdateSerializer,
                           )
 from .controllers import ValidationController
+from .throttles import CustomThrottle
 
 # LoginRequiredMixin et PermissionRequiredMixin et UserPassesTestMixin
 
@@ -26,12 +27,14 @@ class CustomUserViewSet(viewsets.ModelViewSet):
     detail_serializer_class = CustomUserDetailSerializer
     update_serializer_class = CustomUserUpdateSerializer
     permission_classes = [IsAuthenticated]
+    throttle_classes = [CustomThrottle]
 
     def get_queryset(self):
         user = self.request.user
         if user.is_superuser or user.is_staff:
             return CustomUser.objects.all()
-        return CustomUser.objects.none()
+        # pour que les utilisateurs puissent voir leurs propres infos
+        return CustomUser.objects.filter(pk=user.pk)
 
     def get_serializer_class(self):
         if self.action in ['retrieve']:
@@ -57,6 +60,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
     # detail_serializer_class = ProjectSerializerSerializer
     # update_serializer_class = ProjectUpdateSerializer
     permission_classes = [IsAuthenticated]
+    throttle_classes = [CustomThrottle]
 
     def get_queryset(self):
         user = self.request.user
@@ -84,10 +88,12 @@ class ContributorViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = ContributorSerializer
     project_serializer_class = ProjectSerializer
+    throttle_classes = [CustomThrottle]
 
-    def create(self, request, project_id=None, user_id=None):
+    def create(self, request, project_id=None):
+        # récupération de l'user_id via le body
+        user_id = request.data.get('user_id')
         try:
-
             ValidationController.validate_project_id(project_id)
             ValidationController.validate_user_id(user_id)
 
@@ -130,7 +136,7 @@ class ContributorViewSet(viewsets.ViewSet):
         except (CustomNotFound, CustomPermissionDenied, CustomBadRequest) as e:
             return Response({"detail": str(e)}, status=e.status_code)
 
-    def list_projects(self, request, user_id=None):
+    def user_projects(self, request, user_id=None):
         try:
             ValidationController.validate_user_id(user_id)
             user = CustomUser.objects.get(pk=user_id)
