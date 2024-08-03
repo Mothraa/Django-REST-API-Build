@@ -19,6 +19,10 @@ from .controllers import ValidationController
 from .throttles import CustomThrottle
 from .decorators import handle_exceptions
 
+# import logging
+# logger = logging.getLogger(__name__)
+
+
 # LoginRequiredMixin et PermissionRequiredMixin et UserPassesTestMixin
 
 # Un ModelViewset  est comparable à une super vue Django qui regroupe à la fois CreateView, UpdateView, DeleteView, ListView et DetailView.
@@ -32,14 +36,18 @@ class CustomUserViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     throttle_classes = [CustomThrottle]
 
+    @handle_exceptions
     def get_queryset(self):
         user = self.request.user
+        # logger.debug(f"User: {user}")
         if user.is_superuser or user.is_staff:
+            # print("is superuser")
             return CustomUser.objects.all()
         # pour que les utilisateurs puissent voir leurs propres infos
         return CustomUser.objects.filter(pk=user.pk)
 
     def get_serializer_class(self):
+        # TODO ajouter des exceptions
         if self.action in ['retrieve']:
             return self.detail_serializer_class
         elif self.action in ['update', 'partial_update']:

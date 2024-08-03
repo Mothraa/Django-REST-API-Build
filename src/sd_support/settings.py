@@ -129,6 +129,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'sd_api.CustomUser'
 
 SIMPLE_JWT = {
+    # TODO : voir les autres options se simplejwt
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
     'REFRESH_TOKEN_LIFETIME': timedelta(hours=12),
 }
@@ -138,6 +139,7 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 20,
     'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication',),
     'DEFAULT_THROTTLE_CLASSES': [
+        'sd_api.throttles.CustomThrottle',
         'rest_framework.throttling.UserRateThrottle',
         'rest_framework.throttling.AnonRateThrottle',
         ],
@@ -145,8 +147,4 @@ REST_FRAMEWORK = {
         'user': '1000/day',
         'anon': '100/day',
     }
-}
-
-REST_FRAMEWORK = {
-
 }

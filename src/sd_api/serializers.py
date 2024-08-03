@@ -46,7 +46,8 @@ class ContributorSerializer(serializers.ModelSerializer):
 class IssueSerializer(serializers.ModelSerializer):
     class Meta:
         model = Issue
-        fields = ['id', 'title', 'description', 'project', 'assignee', 'priority', 'tag', 'status', 'author', 'created_time']
+        fields = ['id', 'title', 'description', 'project', 'assignee',
+                  'priority', 'tag', 'status', 'author', 'created_time']
         read_only_fields = ['author', 'created_time']
 
 

@@ -1,5 +1,6 @@
 from rest_framework.throttling import SimpleRateThrottle
 
+
 class CustomThrottle(SimpleRateThrottle):
     # limite à 10 requetes par min
     rate = '10/m'
