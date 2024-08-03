@@ -17,13 +17,15 @@ Thumbs.db
 # backups
 *.bak
 
-# subfolders
+# output subfolders
 __pycache__/
 .result/
+result/
 .output/
 output/
-log/
 .log/
+log/
+
 
 # ignore all log files
 *.log
@@ -33,10 +35,6 @@ log/
 htmlcov/
 .pytest_cache/
 assets/
-
-# output subforlders
-.output/
-output/
 
 # media
 media/
