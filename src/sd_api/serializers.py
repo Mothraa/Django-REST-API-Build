@@ -44,6 +44,12 @@ class ContributorSerializer(serializers.ModelSerializer):
 
 
 class IssueSerializer(serializers.ModelSerializer):
+    # TODO : passer les validations d'ID de la vue au serializer, exemple :
+    # def validate(self, data):
+    #     project_id = data.get('project')
+    #     if project_id and not Project.objects.filter(pk=project_id).exists():
+    #         raise serializers.ValidationError({'project': 'Le projet spécifié n\'existe pas.'})
+
     class Meta:
         model = Issue
         fields = ['id', 'title', 'description', 'project', 'assignee',

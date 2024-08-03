@@ -1,9 +1,11 @@
 from rest_framework.response import Response
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, filters
 # from rest_framework.exceptions import PermissionDenied, NotFound
 # from .exceptions import CustomPermissionDenied, CustomNotFound, CustomBadRequest
 # from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.permissions import IsAuthenticated
+
+from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import CustomUser, Project, Contributor, Issue, Comment
 from .serializers import (CustomUserSerializer,
@@ -15,9 +17,11 @@ from .serializers import (CustomUserSerializer,
                           IssueSerializer,
                           CommentSerializer,
                           )
+from .filters import IssueFilter, CommentFilter
 from .controllers import ValidationController
 from .throttles import CustomThrottle
 from .decorators import handle_exceptions
+
 
 # import logging
 # logger = logging.getLogger(__name__)
@@ -35,6 +39,7 @@ class CustomUserViewSet(viewsets.ModelViewSet):
     update_serializer_class = CustomUserUpdateSerializer
     permission_classes = [IsAuthenticated]
     throttle_classes = [CustomThrottle]
+    http_method_names = ['get', 'post', 'put', 'delete']  # on n'authorise pas le PATCH
 
     @handle_exceptions
     def get_queryset(self):
@@ -75,6 +80,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
     # update_serializer_class = ProjectUpdateSerializer
     permission_classes = [IsAuthenticated]
     throttle_classes = [CustomThrottle]
+    http_method_names = ['get', 'post', 'put', 'delete']  # on n'authorise pas le PATCH
 
     def get_queryset(self):
         user = self.request.user
@@ -111,6 +117,7 @@ class ContributorViewSet(viewsets.ViewSet):
     serializer_class = ContributorSerializer
     project_serializer_class = ProjectSerializer
     throttle_classes = [CustomThrottle]
+    http_method_names = ['get', 'post', 'put', 'delete']  # on n'authorise pas le PATCH
 
     @handle_exceptions
     def create(self, request, project_id=None):
@@ -163,6 +170,10 @@ class IssueViewSet(viewsets.ModelViewSet):
     serializer_class = IssueSerializer
     permission_classes = [IsAuthenticated]
     throttle_classes = [CustomThrottle]
+    filter_backends = [DjangoFilterBackend]
+    http_method_names = ['get', 'post', 'put', 'delete']  # on n'authorise pas le PATCH
+    filterset_class = IssueFilter
+    # filterset_fields = ['project']
 
     def get_queryset(self):
         user = self.request.user
@@ -180,16 +191,18 @@ class IssueViewSet(viewsets.ModelViewSet):
         project_id = self.request.data.get('project')
         assignee_id = self.request.data.get('assignee')
 
+        project = ValidationController.validate_project_id(project_id)
+        ValidationController.check_project_permission(user, project)
+
+        # TODO BUG : erreur, possible d'assigner un user qui n'est pas dans le projet
         if assignee_id:
             # ValidationController.validate_user_id(assignee_id)
             # assignee = CustomUser.objects.get(pk=assignee_id)
             assignee = ValidationController.validate_user_id(assignee_id)
+            ValidationController.check_project_permission(assignee, project)
         else:
             # si pas d'assignation de l'issue, met par défaut le créateur
             assignee = user
-
-        project = ValidationController.validate_project_id(project_id)
-        ValidationController.check_project_permission(user, project)
 
         serializer.save(project=project, author=user, assignee=assignee)
 
@@ -200,6 +213,13 @@ class IssueViewSet(viewsets.ModelViewSet):
 
         ValidationController.check_project_permission(user, issue.project)
         ValidationController.check_user_modify_permission(user, issue)
+
+        if 'assignee' in serializer.validated_data:
+            assignee_id = serializer.validated_data.get('assignee')
+            assignee = ValidationController.validate_user_id(assignee_id)
+            ValidationController.check_project_permission(assignee, issue.project)
+
+        # TODO : on ne doit pas pouvoir modifier l'ID de rattachement de l'Issue au Projet
         serializer.save()
 
     @handle_exceptions
@@ -215,6 +235,9 @@ class CommentViewSet(viewsets.ModelViewSet):
     serializer_class = CommentSerializer
     permission_classes = [IsAuthenticated]
     throttle_classes = [CustomThrottle]
+    filter_backends = [DjangoFilterBackend]
+    http_method_names = ['get', 'post', 'put', 'delete']  # on n'authorise pas le PATCH
+    filterset_class = CommentFilter
 
     def get_queryset(self):
         user = self.request.user
@@ -226,6 +249,7 @@ class CommentViewSet(viewsets.ModelViewSet):
         user = self.request.user
         issue_id = self.request.data.get('issue')
 
+        # TODO : on ne doit pas pouvoir modifier l'ID de rattachement du commentaire a l'Issue
         issue = ValidationController.validate_issue_id(issue_id)
         ValidationController.check_project_permission(user, issue.project)
         serializer.save(author=user, issue=issue)
