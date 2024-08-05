@@ -219,7 +219,6 @@ class IssueViewSet(viewsets.ModelViewSet):
             assignee = ValidationController.validate_user_id(assignee_id)
             ValidationController.check_project_permission(assignee, issue.project)
 
-        # TODO : on ne doit pas pouvoir modifier l'ID de rattachement de l'Issue au Projet
         serializer.save()
 
     @handle_exceptions
@@ -249,7 +248,6 @@ class CommentViewSet(viewsets.ModelViewSet):
         user = self.request.user
         issue_id = self.request.data.get('issue')
 
-        # TODO : on ne doit pas pouvoir modifier l'ID de rattachement du commentaire a l'Issue
         issue = ValidationController.validate_issue_id(issue_id)
         ValidationController.check_project_permission(user, issue.project)
         serializer.save(author=user, issue=issue)
@@ -261,6 +259,7 @@ class CommentViewSet(viewsets.ModelViewSet):
 
         ValidationController.check_project_permission(user, comment.issue.project)
         ValidationController.check_user_modify_permission(user, comment)
+
         serializer.save()
 
     @handle_exceptions
