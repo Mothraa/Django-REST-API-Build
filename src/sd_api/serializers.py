@@ -60,6 +60,7 @@ class IssueSerializer(serializers.ModelSerializer):
     def validate(self, data):
         # Dans le cas d'une mise à jour, pour remonter une exception sur la modif de l'ID project
         # (le read_only_fields ne le fait pas tout seul)
+
         if self.instance:
             current_project_id = self.instance.project.id
             new_project_id = data.get('project')
@@ -67,6 +68,24 @@ class IssueSerializer(serializers.ModelSerializer):
             # on ne peut pas modifier l'ID de rattachement de l'Issue au Projet
             if new_project_id and new_project_id != current_project_id:
                 raise CustomBadRequest("Le changement de l'ID du Projet n'est pas authorisé")
+
+            # TODO a tester
+            # for field in ['project', 'author', 'created_time']:
+            #     if field in data:
+            #         raise CustomBadRequest(f"Vous ne pouvez pas changer le champ '{field}'.")
+
+        new_assignee_id = data.get('assignee')
+
+        if new_assignee_id:
+            if self.instance:  # dans le cas d'un update
+                project_id = self.instance.project.id
+            else:  # à None dans le cas d'un create
+                project_id = data.get('project')
+
+            # Vérifie si l'utilisateur assigné est un contributeur du projet
+            if not Contributor.objects.filter(project_id=project_id, user_id=new_assignee_id).exists():
+                raise CustomBadRequest("L'utilisateur assigné ne fait pas parti des contributeurs du projet")
+
         return data
     # TODO : ajouter des validate pour author et created_time sur le même principe que project
 
