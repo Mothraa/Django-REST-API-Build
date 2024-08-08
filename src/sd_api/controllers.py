@@ -1,5 +1,7 @@
 # from rest_framework.response import Response
 # from rest_framework import status
+from rest_framework.exceptions import PermissionDenied, NotAuthenticated
+
 from .models import CustomUser, Project, Contributor, Issue
 from .exceptions import CustomPermissionDenied, CustomNotFound, CustomBadRequest
 
@@ -54,8 +56,25 @@ class ValidationController:
         """
         Check if the user can access the project.
         """
-        if not project.contributors.filter(user=user).exists() and not user.is_superuser:
-            raise CustomPermissionDenied("Vous n'avez pas la permission d'accéder à ce projet")
+        print(f'Checking permissions for user: {user}')
+        print(f'Project ID: {project.id}')
+
+        all_contributors = project.contributors.all()
+
+        is_contributor = all_contributors.filter(user=user).exists()
+        print(f'Is contributor: {is_contributor}')
+
+        is_superuser = user.is_superuser
+
+        if not is_contributor and not is_superuser:
+            raise CustomPermissionDenied(f"L'utilisateur {user} n'a pas la permission d'accéder à ce projet")
+
+        # if not project.contributors.filter(user=user).exists() and not user.is_superuser:
+        #     print("exception !")
+        #     # print(type(PermissionDenied(f"L'utilisateur {user} n'a pas la permission d'accéder à ce projet")))
+        #     raise CustomPermissionDenied()
+        #     # raise PermissionDenied(f"L'utilisateur {user} n'a pas la permission d'accéder à ce projet")
+        #     # raise CustomPermissionDenied(f"L'utilisateur {user} n'a pas la permission d'accéder à ce projet")
 
     @staticmethod
     def check_contributor_permission(user, contributor):

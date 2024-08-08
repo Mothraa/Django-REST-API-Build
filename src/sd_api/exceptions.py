@@ -6,9 +6,11 @@ class CustomPermissionDenied(APIException):
     """
     Exception for errors of permissions
     """
+    # print("inside exception !")
     status_code = status.HTTP_403_FORBIDDEN
     default_detail = 'Action interdite'
     default_code = 'permission_denied'
+    message = "T'as pas le droit !"
 
 
 class CustomNotFound(APIException):
@@ -25,3 +27,4 @@ class CustomBadRequest(APIException):
     Exception when bad request.
     """
     status_code = status.HTTP_400_BAD_REQUEST
+

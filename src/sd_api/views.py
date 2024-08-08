@@ -74,10 +74,7 @@ class CustomUserViewSet(viewsets.ModelViewSet):
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
-    # TODO ajouter des blocs try et les exceptions personnalisées
     serializer_class = ProjectSerializer
-    # detail_serializer_class = ProjectSerializerSerializer
-    # update_serializer_class = ProjectUpdateSerializer
     permission_classes = [IsAuthenticated]
     throttle_classes = [CustomThrottle]
     http_method_names = ['get', 'post', 'put', 'delete']  # on n'authorise pas le PATCH
@@ -173,6 +170,8 @@ class IssueViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     http_method_names = ['get', 'post', 'put', 'delete']  # on n'authorise pas le PATCH
     filterset_class = IssueFilter
+    # authentication_classes = [] # You still need to declare it even it is empty
+    
     # filterset_fields = ['project']
 
     def get_queryset(self):
@@ -188,8 +187,10 @@ class IssueViewSet(viewsets.ModelViewSet):
         # else:
         #     serializer.save()
         user = self.request.user
-        project_id = self.request.data.get('project')
-        assignee_id = self.request.data.get('assignee')
+        # project_id = self.request.data.get('project')
+        project_id = serializer.validated_data.get('project')
+        # assignee_id = self.request.data.get('assignee')
+        assignee_id = serializer.validated_data.get('assignee')
 
         project = ValidationController.validate_project_id(project_id)
         ValidationController.check_project_permission(user, project)
@@ -198,6 +199,7 @@ class IssueViewSet(viewsets.ModelViewSet):
         if assignee_id:
             # ValidationController.validate_user_id(assignee_id)
             # assignee = CustomUser.objects.get(pk=assignee_id)
+
             assignee = ValidationController.validate_user_id(assignee_id)
             ValidationController.check_project_permission(assignee, project)
         else:
@@ -214,11 +216,17 @@ class IssueViewSet(viewsets.ModelViewSet):
         ValidationController.check_project_permission(user, issue.project)
         ValidationController.check_user_modify_permission(user, issue)
 
-        if 'assignee' in serializer.validated_data:
-            assignee_id = serializer.validated_data.get('assignee')
-            assignee = ValidationController.validate_user_id(assignee_id)
+        assignee = serializer.validated_data.get('assignee')
+        if assignee:
+            #     assignee = ValidationController.validate_user_id(assignee)
             ValidationController.check_project_permission(assignee, issue.project)
 
+        # data = serializer.validated_data
+        # data.pop('project', None)
+        # data.pop('author', None)
+        # data.pop('created_time', None)
+
+        # serializer.save(**data)
         serializer.save()
 
     @handle_exceptions
