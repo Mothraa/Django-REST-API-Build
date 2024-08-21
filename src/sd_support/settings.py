@@ -130,7 +130,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'sd_api.CustomUser'
 
 SIMPLE_JWT = {
-    # TODO : voir les autres options se simplejwt
+    # TODO : voir les autres options de simplejwt
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
     'REFRESH_TOKEN_LIFETIME': timedelta(hours=12),
 }
@@ -143,6 +143,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ],
+    'EXCEPTION_HANDLER': 'sd_api.exceptions.custom_exception_handler',
     # 'DEFAULT_AUTHENTICATION_CLASSES': [
     # ],
     'DEFAULT_THROTTLE_CLASSES': [
