@@ -22,7 +22,6 @@ from .serializers import (CustomUserSerializer,
 from .filters import IssueFilter, CommentFilter
 from .controllers import ValidationController
 from .throttles import CustomThrottle
-from .decorators import handle_exceptions
 
 
 # import logging
