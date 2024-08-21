@@ -4,6 +4,8 @@ from rest_framework import viewsets, status, filters
 # from .exceptions import CustomPermissionDenied, CustomNotFound, CustomBadRequest
 # from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.permissions import IsAuthenticated
+# POUR DEBUG
+from rest_framework.exceptions import ValidationError
 
 from django_filters.rest_framework import DjangoFilterBackend
 
@@ -41,7 +43,6 @@ class CustomUserViewSet(viewsets.ModelViewSet):
     throttle_classes = [CustomThrottle]
     http_method_names = ['get', 'post', 'put', 'delete']  # on n'authorise pas le PATCH
 
-    @handle_exceptions
     def get_queryset(self):
         user = self.request.user
         # logger.debug(f"User: {user}")
@@ -59,13 +60,11 @@ class CustomUserViewSet(viewsets.ModelViewSet):
             return self.update_serializer_class
         return self.serializer_class
 
-    @handle_exceptions
     def perform_update(self, serializer):
         user = self.request.user
         ValidationController.check_user_modify_permission(user, serializer.instance)
         serializer.save()
 
-    @handle_exceptions
     def destroy(self, request, *args, **kwargs):
         user = self.request.user
         instance = self.get_object()
@@ -83,12 +82,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
         user = self.request.user
         return Project.objects.filter(contributors__user=user)
 
-    @handle_exceptions
     def perform_create(self, serializer):
         project = serializer.save(author=self.request.user)
         Contributor.objects.create(user=self.request.user, project=project)
 
-    @handle_exceptions
     def perform_update(self, serializer):
         user = self.request.user
         project = self.get_object()
@@ -96,17 +93,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
         ValidationController.check_user_modify_permission(user, project)
         serializer.save()
 
-    @handle_exceptions
     def perform_destroy(self, instance):
         user = self.request.user
         project = instance
         ValidationController.check_project_permission(user, instance)
         ValidationController.check_user_delete_permission(user, project)
         instance.delete()
-
-    # @action(detail=True, methods=['post'])
-    # def action_perso(self):
-    #     pass
 
 
 class ContributorViewSet(viewsets.ViewSet):
@@ -116,7 +108,6 @@ class ContributorViewSet(viewsets.ViewSet):
     throttle_classes = [CustomThrottle]
     http_method_names = ['get', 'post', 'put', 'delete']  # on n'authorise pas le PATCH
 
-    @handle_exceptions
     def create(self, request, project_id=None):
         # récupération de l'user_id via le body
         user_id = request.data.get('user_id')
@@ -134,7 +125,6 @@ class ContributorViewSet(viewsets.ViewSet):
         serializer = self.serializer_class(contributor)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    @handle_exceptions
     def destroy(self, request, project_id=None, user_id=None):
         ValidationController.validate_project_id(project_id)
         ValidationController.validate_user_id(user_id)
@@ -144,7 +134,6 @@ class ContributorViewSet(viewsets.ViewSet):
         contributor.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @handle_exceptions
     def list_contributors(self, request, project_id=None):
         ValidationController.validate_project_id(project_id)
         project = Project.objects.get(pk=project_id)
@@ -154,7 +143,6 @@ class ContributorViewSet(viewsets.ViewSet):
         serializer = self.serializer_class(contributors, many=True)
         return Response(serializer.data)
 
-    @handle_exceptions
     def user_projects(self, request, user_id=None):
         ValidationController.validate_user_id(user_id)
         user = CustomUser.objects.get(pk=user_id)
@@ -170,8 +158,6 @@ class IssueViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     http_method_names = ['get', 'post', 'put', 'delete']  # on n'authorise pas le PATCH
     filterset_class = IssueFilter
-    # authentication_classes = [] # You still need to declare it even it is empty
-    
     # filterset_fields = ['project']
 
     def get_queryset(self):
@@ -179,7 +165,6 @@ class IssueViewSet(viewsets.ModelViewSet):
         # retourne que les issues pour lesquels le user est concerné (contributor)
         return Issue.objects.filter(project__contributors__user=user)
 
-    @handle_exceptions
     def perform_create(self, serializer):
         # si pas d'assignation de l'issue, mettre par défaut le créateur
         # if 'assignee' not in serializer.validated_data:
@@ -208,7 +193,6 @@ class IssueViewSet(viewsets.ModelViewSet):
 
         serializer.save(project=project, author=user, assignee=assignee)
 
-    @handle_exceptions
     def perform_update(self, serializer):
         issue = self.get_object()
         user = self.request.user
@@ -229,7 +213,6 @@ class IssueViewSet(viewsets.ModelViewSet):
         # serializer.save(**data)
         serializer.save()
 
-    @handle_exceptions
     def perform_destroy(self, instance):
         user = self.request.user
 
@@ -251,7 +234,6 @@ class CommentViewSet(viewsets.ModelViewSet):
         # Filtrage des comments pour les issues auquel l'user à accès
         return Comment.objects.filter(issue__project__contributors__user=user)
 
-    @handle_exceptions
     def perform_create(self, serializer):
         user = self.request.user
         issue_id = self.request.data.get('issue')
@@ -260,7 +242,6 @@ class CommentViewSet(viewsets.ModelViewSet):
         ValidationController.check_project_permission(user, issue.project)
         serializer.save(author=user, issue=issue)
 
-    @handle_exceptions
     def perform_update(self, serializer):
         comment = self.get_object()
         user = self.request.user
@@ -270,7 +251,6 @@ class CommentViewSet(viewsets.ModelViewSet):
 
         serializer.save()
 
-    @handle_exceptions
     def perform_destroy(self, instance):
         user = self.request.user
 
