@@ -4,8 +4,6 @@ from rest_framework import viewsets, status, filters
 # from .exceptions import CustomPermissionDenied, CustomNotFound, CustomBadRequest
 # from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.permissions import IsAuthenticated
-# POUR DEBUG
-from rest_framework.exceptions import ValidationError
 
 from django_filters.rest_framework import DjangoFilterBackend
 
@@ -20,9 +18,8 @@ from .serializers import (CustomUserSerializer,
                           CommentSerializer,
                           )
 from .filters import IssueFilter, CommentFilter
-from .controllers import ValidationController
 from .throttles import CustomThrottle
-
+from .mixins import ValidationMixin, PermissionMixin, ContributorMixin
 
 # import logging
 # logger = logging.getLogger(__name__)
@@ -34,7 +31,7 @@ from .throttles import CustomThrottle
 # class CategoryViewset(ReadOnlyModelViewSet):
 
 
-class CustomUserViewSet(viewsets.ModelViewSet):
+class CustomUserViewSet(viewsets.ModelViewSet, PermissionMixin):
     serializer_class = CustomUserSerializer
     detail_serializer_class = CustomUserDetailSerializer
     update_serializer_class = CustomUserUpdateSerializer
@@ -44,9 +41,7 @@ class CustomUserViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        # logger.debug(f"User: {user}")
         if user.is_superuser or user.is_staff:
-            # print("is superuser")
             return CustomUser.objects.all()
         # pour que les utilisateurs puissent voir leurs propres infos
         return CustomUser.objects.filter(pk=user.pk)
@@ -60,18 +55,17 @@ class CustomUserViewSet(viewsets.ModelViewSet):
         return self.serializer_class
 
     def perform_update(self, serializer):
-        user = self.request.user
-        ValidationController.check_user_modify_permission(user, serializer.instance)
+        self.check_user_modify_permission(self.request.user, serializer.instance)
         serializer.save()
 
     def destroy(self, request, *args, **kwargs):
         user = self.request.user
         instance = self.get_object()
-        ValidationController.check_user_delete_permission(user, instance)
+        self.check_user_delete_permission(user, instance)
         return super().destroy(request, *args, **kwargs)
 
 
-class ProjectViewSet(viewsets.ModelViewSet):
+class ProjectViewSet(viewsets.ModelViewSet, ValidationMixin, PermissionMixin):
     serializer_class = ProjectSerializer
     permission_classes = [IsAuthenticated]
     throttle_classes = [CustomThrottle]
@@ -88,19 +82,19 @@ class ProjectViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         user = self.request.user
         project = self.get_object()
-        ValidationController.check_project_permission(self.request.user, project)
-        ValidationController.check_user_modify_permission(user, project)
+        self.check_project_permission(self.request.user, project)
+        self.check_user_modify_permission(user, project)
         serializer.save()
 
     def perform_destroy(self, instance):
         user = self.request.user
         project = instance
-        ValidationController.check_project_permission(user, instance)
-        ValidationController.check_user_delete_permission(user, project)
+        self.check_project_permission(user, instance)
+        self.check_user_delete_permission(user, project)
         instance.delete()
 
 
-class ContributorViewSet(viewsets.ViewSet):
+class ContributorViewSet(viewsets.ViewSet, ValidationMixin, PermissionMixin, ContributorMixin):
     permission_classes = [IsAuthenticated]
     serializer_class = ContributorSerializer
     project_serializer_class = ProjectSerializer
@@ -111,46 +105,46 @@ class ContributorViewSet(viewsets.ViewSet):
         # récupération de l'user_id via le body
         user_id = request.data.get('user_id')
 
-        ValidationController.validate_project_id(project_id)
-        ValidationController.validate_user_id(user_id)
+        self.validate_project_id(project_id)
+        self.validate_user_id(user_id)
 
         project = Project.objects.get(pk=project_id)
         user = CustomUser.objects.get(pk=user_id)
 
-        ValidationController.check_contributor_exist(user, project)
-        ValidationController.check_project_permission(request.user, project)
+        self.check_contributor_exist(user, project)
+        self.check_project_permission(request.user, project)
 
         contributor = Contributor.objects.create(user=user, project=project)
         serializer = self.serializer_class(contributor)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def destroy(self, request, project_id=None, user_id=None):
-        ValidationController.validate_project_id(project_id)
-        ValidationController.validate_user_id(user_id)
+        self.validate_project_id(project_id)
+        self.validate_user_id(user_id)
 
-        contributor = ValidationController.get_contributor(project_id, user_id)
-        ValidationController.check_contributor_permission(request.user, contributor)
+        contributor = self.get_contributor(project_id, user_id)
+        self.check_contributor_permission(request.user, contributor)
         contributor.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def list_contributors(self, request, project_id=None):
-        ValidationController.validate_project_id(project_id)
+        self.validate_project_id(project_id)
         project = Project.objects.get(pk=project_id)
-        ValidationController.check_project_permission(request.user, project)
+        self.check_project_permission(request.user, project)
 
         contributors = Contributor.objects.filter(project=project)
         serializer = self.serializer_class(contributors, many=True)
         return Response(serializer.data)
 
     def user_projects(self, request, user_id=None):
-        ValidationController.validate_user_id(user_id)
+        self.validate_user_id(user_id)
         user = CustomUser.objects.get(pk=user_id)
         projects = Project.objects.filter(contributors__user=user)
         serializer = self.project_serializer_class(projects, many=True)
         return Response(serializer.data)
 
 
-class IssueViewSet(viewsets.ModelViewSet):
+class IssueViewSet(viewsets.ModelViewSet, ValidationMixin, PermissionMixin):
     serializer_class = IssueSerializer
     permission_classes = [IsAuthenticated]
     throttle_classes = [CustomThrottle]
@@ -165,27 +159,16 @@ class IssueViewSet(viewsets.ModelViewSet):
         return Issue.objects.filter(project__contributors__user=user)
 
     def perform_create(self, serializer):
-        # si pas d'assignation de l'issue, mettre par défaut le créateur
-        # if 'assignee' not in serializer.validated_data:
-        #     serializer.save(assignee=self.request.user)
-        # else:
-        #     serializer.save()
         user = self.request.user
-        # project_id = self.request.data.get('project')
         project_id = serializer.validated_data.get('project')
-        # assignee_id = self.request.data.get('assignee')
         assignee_id = serializer.validated_data.get('assignee')
 
-        project = ValidationController.validate_project_id(project_id)
-        ValidationController.check_project_permission(user, project)
+        project = self.validate_project_id(project_id)
+        self.check_project_permission(user, project)
 
-        # TODO BUG : erreur, possible d'assigner un user qui n'est pas dans le projet
         if assignee_id:
-            # ValidationController.validate_user_id(assignee_id)
-            # assignee = CustomUser.objects.get(pk=assignee_id)
-
-            assignee = ValidationController.validate_user_id(assignee_id)
-            ValidationController.check_project_permission(assignee, project)
+            assignee = self.validate_user_id(assignee_id)
+            self.check_project_permission(assignee, project)
         else:
             # si pas d'assignation de l'issue, met par défaut le créateur
             assignee = user
@@ -196,31 +179,23 @@ class IssueViewSet(viewsets.ModelViewSet):
         issue = self.get_object()
         user = self.request.user
 
-        ValidationController.check_project_permission(user, issue.project)
-        ValidationController.check_user_modify_permission(user, issue)
+        self.check_project_permission(user, issue.project)
+        self.check_user_modify_permission(user, issue)
 
         assignee = serializer.validated_data.get('assignee')
         if assignee:
-            #     assignee = ValidationController.validate_user_id(assignee)
-            ValidationController.check_project_permission(assignee, issue.project)
+            self.check_project_permission(assignee, issue.project)
 
-        # data = serializer.validated_data
-        # data.pop('project', None)
-        # data.pop('author', None)
-        # data.pop('created_time', None)
-
-        # serializer.save(**data)
         serializer.save()
 
     def perform_destroy(self, instance):
         user = self.request.user
-
-        ValidationController.check_project_permission(user, instance.project)
-        ValidationController.check_user_delete_permission(user, instance)
+        self.check_project_permission(user, instance.project)
+        self.check_user_delete_permission(user, instance)
         instance.delete()
 
 
-class CommentViewSet(viewsets.ModelViewSet):
+class CommentViewSet(viewsets.ModelViewSet, ValidationMixin, PermissionMixin):
     serializer_class = CommentSerializer
     permission_classes = [IsAuthenticated]
     throttle_classes = [CustomThrottle]
@@ -237,22 +212,19 @@ class CommentViewSet(viewsets.ModelViewSet):
         user = self.request.user
         issue_id = self.request.data.get('issue')
 
-        issue = ValidationController.validate_issue_id(issue_id)
-        ValidationController.check_project_permission(user, issue.project)
+        issue = self.validate_issue_id(issue_id)
+        self.check_project_permission(user, issue.project)
         serializer.save(author=user, issue=issue)
 
     def perform_update(self, serializer):
         comment = self.get_object()
         user = self.request.user
-
-        ValidationController.check_project_permission(user, comment.issue.project)
-        ValidationController.check_user_modify_permission(user, comment)
-
+        self.check_project_permission(user, comment.issue.project)
+        self.check_user_modify_permission(user, comment)
         serializer.save()
 
     def perform_destroy(self, instance):
         user = self.request.user
-
-        ValidationController.check_project_permission(user, instance.issue.project)
-        ValidationController.check_user_delete_permission(user, instance)
+        self.check_project_permission(user, instance.issue.project)
+        self.check_user_delete_permission(user, instance)
         instance.delete()
