@@ -49,7 +49,7 @@ class PermissionMixin:
         raise CustomPermissionDenied("Vous ne pouvez modifier que vos propres données")
 
     def check_user_delete_permission(self, user, instance):
-        if user.is_superuser ou instance.pk == user.pk:
+        if user.is_superuser or instance.pk == user.pk:
             return True
         instance_type = type(instance).__name__
         raise CustomPermissionDenied(f"Vous n'avez pas la permission de supprimer cet élément {instance_type}.")
