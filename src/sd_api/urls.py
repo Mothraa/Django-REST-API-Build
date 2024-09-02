@@ -1,6 +1,9 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import CustomUserViewSet, ProjectViewSet, ContributorViewSet, IssueViewSet, CommentViewSet
+from .views import (CustomUserViewSet, ProjectViewSet,
+                    ContributorViewSet, IssueViewSet,
+                    CommentViewSet, TokenBlacklistViewSet
+                    )
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 
@@ -12,9 +15,11 @@ router.register('issues', IssueViewSet, basename='issue')
 router.register('comments', CommentViewSet, basename='comment')
 
 urlpatterns = [
+     # endpoint qui inclus l'interface d'admin, a priori non utile en prod /api-auth/login/ et /api-auth/logout/
      path('api-auth/', include('rest_framework.urls')),
      path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
      path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+     path('api/token/blacklist/', TokenBlacklistViewSet.as_view({'post': 'token_blacklist'}), name='token_blacklist'),
      path('api/', include(router.urls)),
      # spécifique contributors
      path('api/projects/<int:project_id>/contributors/',

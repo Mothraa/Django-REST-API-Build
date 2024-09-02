@@ -31,6 +31,10 @@ class CustomUserUpdateSerializer(serializers.ModelSerializer):
         fields = ['username', 'age', 'can_be_contacted', 'can_data_be_shared']
 
 
+class TokenBlacklistSerializer(serializers.Serializer):
+    refresh = serializers.CharField()
+
+
 class ProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
@@ -45,61 +49,11 @@ class ContributorSerializer(serializers.ModelSerializer):
 
 
 class IssueSerializer(serializers.ModelSerializer):
-    # TODO : passer les validations d'ID de la vue au serializer, exemple :
-    # def validate(self, data):
-    #     project_id = data.get('project')
-    #     if project_id and not Project.objects.filter(pk=project_id).exists():
-    #         raise serializers.ValidationError({'project': 'Le projet spécifié n\'existe pas.'})
-
     class Meta:
         model = Issue
         fields = ['id', 'title', 'project', 'description', 'assignee',
                   'priority', 'tag', 'status', 'author', 'created_time']
         read_only_fields = ['project', 'author', 'created_time']
-
-    # def validate(self, data):
-    #     # pour remonter une exception sur la modif de l'ID project
-    #     # (le read_only_fields ne le fait pas tout seul)
-    #     print(data)
-    #     project_id = self._get_project_id(data)
-    #     print(f"project_id : {project_id}")
-    #     print(self.instance)
-    #     if self.instance:
-    #         print("update instance")
-    #         self._validate_update(data, project_id)
-    #     else:
-    #         self._validate_create(data, project_id)
-    #     return data
-
-    # def _validate_create(self, data, project_id):
-    #     """
-    #     Validate data for a creation
-    #     """
-    #     # Vérifie que l'ID du projet est spécifié
-    #     project_id = data.get('project')
-    #     if not project_id:
-    #         raise CustomBadRequest("Le projet doit être spécifié")
-
-    #     # Validation pour l'assigné
-    #     # self._validate_assignate(data, project_id)
-
-    # def _validate_update(self, data, project_id):
-    #     """
-    #     Validate data for an update
-    #     """
-    #     # Obtenir l'ID du projet actuel depuis l'instance
-    #     current_project_id = self.instance.project.id
-    #     print(current_project_id)
-    #     print(project_id)
-    #     # Vérifie que l'ID du projet n'a pas été modifié
-    #     if project_id and project_id != current_project_id:
-    #         print("condition ok")
-    #         raise CustomBadRequest("Le changement de l'ID du Projet n'est pas autorisé")
-
-        # Vérifie que les champs en lecture seule ne sont pas modifiés
-        # self._check_read_only_fields(data)
-
-        # self._validate_assignate(data, current_project_id)
 
     def _get_project_id(self, data):
         """
@@ -111,23 +65,6 @@ class IssueSerializer(serializers.ModelSerializer):
             # print(data)
 
             return data.get('project')
-            # return self.context['request'].data.get('project')
-
-    # def _validate_assignate(self, data, project_id):
-    #     """
-    #     Validate if an assignated user is a project contributor
-    #     """
-    #     new_assignee_id = data.get('assignee')
-    #     if new_assignee_id and not Contributor.objects.filter(project_id=project_id, user_id=new_assignee_id).exists():
-    #         raise CustomBadRequest("L'utilisateur assigné ne fait pas partie des contributeurs du projet")
-
-    # def _check_read_only_fields(self, data):
-    #     """
-    #     Add an exception if try to add/update readonly fields + parent ID (projects)
-    #     """
-    #     for field in ['author', 'created_time']:  #'project', 
-    #         if field in data:
-    #             raise CustomBadRequest(f"Vous ne pouvez pas changer le champ '{field}'")
 
 
 class CommentSerializer(serializers.ModelSerializer):

@@ -1,10 +1,7 @@
 from rest_framework.response import Response
-from rest_framework import viewsets, status, filters
-# from rest_framework.exceptions import PermissionDenied, NotFound
-# from .exceptions import CustomPermissionDenied, CustomNotFound, CustomBadRequest
-# from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
-
+from rest_framework_simplejwt.tokens import RefreshToken # pour gérer la blacklist
 from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import CustomUser, Project, Contributor, Issue, Comment
@@ -13,23 +10,14 @@ from .serializers import (CustomUserSerializer,
                           CustomUserUpdateSerializer,
                           ProjectSerializer,
                           ContributorSerializer,
-                          # ProjectUpdateSerializer,
                           IssueSerializer,
                           CommentSerializer,
+                          TokenBlacklistSerializer,
                           )
 from .filters import IssueFilter, CommentFilter
 from .throttles import CustomThrottle
 from .mixins import ValidationMixin, ContributorMixin
 from .permissions import IsContributor, IsProjectOwner
-
-# import logging
-# logger = logging.getLogger(__name__)
-
-
-# LoginRequiredMixin et PermissionRequiredMixin et UserPassesTestMixin
-
-# Un ModelViewset  est comparable à une super vue Django qui regroupe à la fois CreateView, UpdateView, DeleteView, ListView et DetailView.
-# class CategoryViewset(ReadOnlyModelViewSet):
 
 
 class CustomUserViewSet(viewsets.ModelViewSet):
@@ -57,14 +45,25 @@ class CustomUserViewSet(viewsets.ModelViewSet):
         return self.serializer_class
 
     def perform_update(self, serializer):
-        self.check_user_modify_permission(self.request.user, serializer.instance)
         serializer.save()
 
     def destroy(self, request, *args, **kwargs):
-        user = self.request.user
-        instance = self.get_object()
-        self.check_user_delete_permission(user, instance)
         return super().destroy(request, *args, **kwargs)
+
+
+class TokenBlacklistViewSet(viewsets.ModelViewSet, ValidationMixin):
+    serializer_class = TokenBlacklistSerializer
+    throttle_classes = [CustomThrottle]
+    http_method_names = ['post']
+
+    def token_blacklist(self, request):
+        try:
+            refresh_token = request.data.get("refresh")
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            return Response(status=status.HTTP_205_RESET_CONTENT)
+        except Exception as e:
+            return Response({"erreur": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ProjectViewSet(viewsets.ModelViewSet, ValidationMixin):
@@ -88,17 +87,9 @@ class ProjectViewSet(viewsets.ModelViewSet, ValidationMixin):
         Contributor.objects.create(user=self.request.user, project=project)
 
     def perform_update(self, serializer):
-        user = self.request.user
-        project = self.get_object()
-        self.check_project_permission(self.request.user, project)
-        self.check_user_modify_permission(user, project)
         serializer.save()
 
     def perform_destroy(self, instance):
-        user = self.request.user
-        project = instance
-        # self.check_project_permission(user, instance)
-        # self.check_user_delete_permission(user, project)
         instance.delete()
 
 
@@ -119,9 +110,6 @@ class ContributorViewSet(viewsets.ViewSet, ValidationMixin, ContributorMixin):
         project = Project.objects.get(pk=project_id)
         user = CustomUser.objects.get(pk=user_id)
 
-        # self.check_contributor_exist(user, project)
-        self.check_project_permission(request.user, project)
-
         contributor = Contributor.objects.create(user=user, project=project)
         serializer = self.serializer_class(contributor)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -131,14 +119,12 @@ class ContributorViewSet(viewsets.ViewSet, ValidationMixin, ContributorMixin):
         self.validate_user_id(user_id)
 
         contributor = self.get_contributor(project_id, user_id)
-        self.check_contributor_permission(request.user, contributor)
         contributor.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def list_contributors(self, request, project_id=None):
         self.validate_project_id(project_id)
         project = Project.objects.get(pk=project_id)
-        self.check_project_permission(request.user, project)
 
         contributors = Contributor.objects.filter(project=project)
         serializer = self.serializer_class(contributors, many=True)
@@ -172,11 +158,9 @@ class IssueViewSet(viewsets.ModelViewSet, ValidationMixin):
         assignee_id = serializer.validated_data.get('assignee')
 
         project = self.validate_project_id(project_id)
-        self.check_project_permission(user, project)
 
         if assignee_id:
             assignee = self.validate_user_id(assignee_id)
-            self.check_project_permission(assignee, project)
         else:
             # si pas d'assignation de l'issue, met par défaut le créateur
             assignee = user
@@ -184,22 +168,9 @@ class IssueViewSet(viewsets.ModelViewSet, ValidationMixin):
         serializer.save(project=project, author=user, assignee=assignee)
 
     def perform_update(self, serializer):
-        issue = self.get_object()
-        user = self.request.user
-
-        self.check_project_permission(user, issue.project)
-        self.check_user_modify_permission(user, issue)
-
-        assignee = serializer.validated_data.get('assignee')
-        if assignee:
-            self.check_project_permission(assignee, issue.project)
-
         serializer.save()
 
     def perform_destroy(self, instance):
-        user = self.request.user
-        self.check_project_permission(user, instance.project)
-        self.check_user_delete_permission(user, instance)
         instance.delete()
 
 
@@ -219,20 +190,11 @@ class CommentViewSet(viewsets.ModelViewSet, ValidationMixin):
     def perform_create(self, serializer):
         user = self.request.user
         issue_id = self.request.data.get('issue')
-
         issue = self.validate_issue_id(issue_id)
-        self.check_project_permission(user, issue.project)
         serializer.save(author=user, issue=issue)
 
     def perform_update(self, serializer):
-        comment = self.get_object()
-        user = self.request.user
-        self.check_project_permission(user, comment.issue.project)
-        self.check_user_modify_permission(user, comment)
         serializer.save()
 
     def perform_destroy(self, instance):
-        user = self.request.user
-        self.check_project_permission(user, instance.issue.project)
-        self.check_user_delete_permission(user, instance)
         instance.delete()

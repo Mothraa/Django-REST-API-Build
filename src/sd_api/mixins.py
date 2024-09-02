@@ -1,5 +1,7 @@
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 from .models import CustomUser, Project, Contributor, Issue
-from .exceptions import CustomPermissionDenied, CustomNotFound, CustomBadRequest
+from .exceptions import CustomNotFound, CustomBadRequest
 
 
 class ValidationMixin:
@@ -27,6 +29,13 @@ class ValidationMixin:
             raise CustomNotFound("Issue non trouvée")
         return Issue.objects.get(pk=issue_id)
 
+    def validate_refresh_token(self, refresh_token):
+        try:
+            token = RefreshToken(refresh_token)
+        except (TokenError, InvalidToken) as e:
+            raise CustomBadRequest(f"{str(e)}")
+        except Exception as e:
+            raise CustomBadRequest(f"Erreur de refresh token. {str(e)}")
 
 # class PermissionMixin:
 #     """
