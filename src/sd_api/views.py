@@ -3,7 +3,7 @@ from rest_framework import viewsets, status, filters
 # from rest_framework.exceptions import PermissionDenied, NotFound
 # from .exceptions import CustomPermissionDenied, CustomNotFound, CustomBadRequest
 # from rest_framework.permissions import IsAuthenticated, IsAdminUser
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
 from django_filters.rest_framework import DjangoFilterBackend
 
@@ -19,7 +19,8 @@ from .serializers import (CustomUserSerializer,
                           )
 from .filters import IssueFilter, CommentFilter
 from .throttles import CustomThrottle
-from .mixins import ValidationMixin, PermissionMixin, ContributorMixin
+from .mixins import ValidationMixin, ContributorMixin
+from .permissions import IsContributor, IsProjectOwner
 
 # import logging
 # logger = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ from .mixins import ValidationMixin, PermissionMixin, ContributorMixin
 # class CategoryViewset(ReadOnlyModelViewSet):
 
 
-class CustomUserViewSet(viewsets.ModelViewSet, PermissionMixin):
+class CustomUserViewSet(viewsets.ModelViewSet):
     serializer_class = CustomUserSerializer
     detail_serializer_class = CustomUserDetailSerializer
     update_serializer_class = CustomUserUpdateSerializer
@@ -39,6 +40,7 @@ class CustomUserViewSet(viewsets.ModelViewSet, PermissionMixin):
     throttle_classes = [CustomThrottle]
     http_method_names = ['get', 'post', 'put', 'delete']  # on n'authorise pas le PATCH
 
+    # TODO gestion des permissions
     def get_queryset(self):
         user = self.request.user
         if user.is_superuser or user.is_staff:
@@ -65,11 +67,17 @@ class CustomUserViewSet(viewsets.ModelViewSet, PermissionMixin):
         return super().destroy(request, *args, **kwargs)
 
 
-class ProjectViewSet(viewsets.ModelViewSet, ValidationMixin, PermissionMixin):
+class ProjectViewSet(viewsets.ModelViewSet, ValidationMixin):
     serializer_class = ProjectSerializer
-    permission_classes = [IsAuthenticated]
     throttle_classes = [CustomThrottle]
     http_method_names = ['get', 'post', 'put', 'delete']  # on n'authorise pas le PATCH
+
+    def get_permissions(self):
+        if self.action in ['update', 'partial_update', 'destroy']:
+            permission_classes = [IsAuthenticated, IsProjectOwner | IsAdminUser]
+        else:
+            permission_classes = [IsAuthenticated, IsContributor | IsAdminUser | IsProjectOwner]
+        return [permission() for permission in permission_classes]
 
     def get_queryset(self):
         user = self.request.user
@@ -89,12 +97,12 @@ class ProjectViewSet(viewsets.ModelViewSet, ValidationMixin, PermissionMixin):
     def perform_destroy(self, instance):
         user = self.request.user
         project = instance
-        self.check_project_permission(user, instance)
-        self.check_user_delete_permission(user, project)
+        # self.check_project_permission(user, instance)
+        # self.check_user_delete_permission(user, project)
         instance.delete()
 
 
-class ContributorViewSet(viewsets.ViewSet, ValidationMixin, PermissionMixin, ContributorMixin):
+class ContributorViewSet(viewsets.ViewSet, ValidationMixin, ContributorMixin):
     permission_classes = [IsAuthenticated]
     serializer_class = ContributorSerializer
     project_serializer_class = ProjectSerializer
@@ -111,7 +119,7 @@ class ContributorViewSet(viewsets.ViewSet, ValidationMixin, PermissionMixin, Con
         project = Project.objects.get(pk=project_id)
         user = CustomUser.objects.get(pk=user_id)
 
-        self.check_contributor_exist(user, project)
+        # self.check_contributor_exist(user, project)
         self.check_project_permission(request.user, project)
 
         contributor = Contributor.objects.create(user=user, project=project)
@@ -144,9 +152,9 @@ class ContributorViewSet(viewsets.ViewSet, ValidationMixin, PermissionMixin, Con
         return Response(serializer.data)
 
 
-class IssueViewSet(viewsets.ModelViewSet, ValidationMixin, PermissionMixin):
+class IssueViewSet(viewsets.ModelViewSet, ValidationMixin):
     serializer_class = IssueSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsContributor | IsAdminUser]
     throttle_classes = [CustomThrottle]
     filter_backends = [DjangoFilterBackend]
     http_method_names = ['get', 'post', 'put', 'delete']  # on n'authorise pas le PATCH
@@ -195,9 +203,9 @@ class IssueViewSet(viewsets.ModelViewSet, ValidationMixin, PermissionMixin):
         instance.delete()
 
 
-class CommentViewSet(viewsets.ModelViewSet, ValidationMixin, PermissionMixin):
+class CommentViewSet(viewsets.ModelViewSet, ValidationMixin):
     serializer_class = CommentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsContributor | IsAdminUser]
     throttle_classes = [CustomThrottle]
     filter_backends = [DjangoFilterBackend]
     http_method_names = ['get', 'post', 'put', 'delete']  # on n'authorise pas le PATCH
