@@ -1,7 +1,7 @@
 from rest_framework.response import Response
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
-from rest_framework_simplejwt.tokens import RefreshToken # pour gérer la blacklist
+from rest_framework_simplejwt.tokens import RefreshToken  # pour gérer la blacklist
 from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import CustomUser, Project, Contributor, Issue, Comment
@@ -17,27 +17,33 @@ from .serializers import (CustomUserSerializer,
 from .filters import IssueFilter, CommentFilter
 from .throttles import CustomThrottle
 from .mixins import ValidationMixin, ContributorMixin
-from .permissions import IsContributor, IsProjectOwner
+from .permissions import IsMeOrAdmin, IsContributor, IsProjectOwner
 
 
 class CustomUserViewSet(viewsets.ModelViewSet):
     serializer_class = CustomUserSerializer
     detail_serializer_class = CustomUserDetailSerializer
     update_serializer_class = CustomUserUpdateSerializer
-    permission_classes = [IsAuthenticated]
     throttle_classes = [CustomThrottle]
     http_method_names = ['get', 'post', 'put', 'delete']  # on n'authorise pas le PATCH
 
-    # TODO gestion des permissions
+    def get_permissions(self):
+        if self.action == 'create':
+            permission_classes = [IsAuthenticated, IsAdminUser]
+        elif self.action == 'destroy':
+            permission_classes = [IsAuthenticated, IsMeOrAdmin]
+        else:
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
     def get_queryset(self):
         user = self.request.user
         if user.is_superuser or user.is_staff:
             return CustomUser.objects.all()
-        # pour que les utilisateurs puissent voir leurs propres infos
+        # pour les utilisateurs affiche leurs infos uniquement
         return CustomUser.objects.filter(pk=user.pk)
 
     def get_serializer_class(self):
-        # TODO ajouter des exceptions
         if self.action in ['retrieve']:
             return self.detail_serializer_class
         elif self.action in ['update', 'partial_update']:

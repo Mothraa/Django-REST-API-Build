@@ -31,38 +31,11 @@ class ValidationMixin:
 
     def validate_refresh_token(self, refresh_token):
         try:
-            token = RefreshToken(refresh_token)
+            RefreshToken(refresh_token)
         except (TokenError, InvalidToken) as e:
             raise CustomBadRequest(f"{str(e)}")
         except Exception as e:
             raise CustomBadRequest(f"Erreur de refresh token. {str(e)}")
-
-# class PermissionMixin:
-#     """
-#     Mixins for checking permissions
-#     """
-#     def check_project_permission(self, user, project):
-#         all_contributors = project.contributors.all()
-#         is_contributor = all_contributors.filter(user=user).exists()
-#         is_superuser = user.is_superuser
-
-#         if not is_contributor and not is_superuser:
-#             raise CustomPermissionDenied(f"L'utilisateur {user} n'a pas la permission d'accéder à ce projet")
-
-#     def check_contributor_permission(self, user, contributor):
-#         if contributor.project.author != user:
-#             raise CustomPermissionDenied("Vous n'avez pas la permission d'enlever ce contributeur")
-
-#     def check_user_modify_permission(self, user, serializer_instance):
-#         if user.is_superuser or serializer_instance.pk == user.pk:
-#             return True
-#         raise CustomPermissionDenied("Vous ne pouvez modifier que vos propres données")
-
-#     def check_user_delete_permission(self, user, instance):
-#         if user.is_superuser or instance.pk == user.pk:
-#             return True
-#         instance_type = type(instance).__name__
-#         raise CustomPermissionDenied(f"Vous n'avez pas la permission de supprimer cet élément {instance_type}.")
 
 
 class ContributorMixin:
