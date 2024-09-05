@@ -155,21 +155,21 @@ class IssueViewSet(viewsets.ModelViewSet, ValidationMixin):
 
     def get_queryset(self):
         user = self.request.user
-        # retourne que les issues pour lesquels le user est concerné (contributor)
+        # si admin retourne tout
+        if user.is_superuser or user.is_staff:
+            return Issue.objects.all()
+        # sinon retourne que ses Issues
         return Issue.objects.filter(project__contributors__user=user)
 
     def perform_create(self, serializer):
+        print("Requête de données : ", self.request.data)
         user = self.request.user
-        project_id = serializer.validated_data.get('project')
-        assignee_id = serializer.validated_data.get('assignee')
+        project = serializer.validated_data.get('project')
+        # si pas d'assignation de l'issue, met par défaut le créateur
+        assignee = serializer.validated_data.get('assignee', user)
 
-        project = self.validate_project_id(project_id)
-
-        if assignee_id:
-            assignee = self.validate_user_id(assignee_id)
-        else:
-            # si pas d'assignation de l'issue, met par défaut le créateur
-            assignee = user
+        project_id_validate = self.validate_project_id(project.id)
+        assignee_id_validate = self.validate_user_id(assignee.id)
 
         serializer.save(project=project, author=user, assignee=assignee)
 
@@ -190,7 +190,10 @@ class CommentViewSet(viewsets.ModelViewSet, ValidationMixin):
 
     def get_queryset(self):
         user = self.request.user
-        # Filtrage des comments pour les issues auquel l'user à accès
+        # si admin retourne tout
+        if user.is_superuser or user.is_staff:
+            return Comment.objects.all()
+        # sinon retourne que ses les comments auquel l'user a accès
         return Comment.objects.filter(issue__project__contributors__user=user)
 
     def perform_create(self, serializer):

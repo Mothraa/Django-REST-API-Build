@@ -9,18 +9,30 @@ class ValidationMixin:
     Mixins for validate IDs
     """
     def validate_project_id(self, project_id):
+        print(project_id)
+        print(type(project_id))
         if project_id is None:
             raise CustomBadRequest("L'ID du projet est requis")
+        # if not Project.objects.filter(pk=project_id).exists():
+        #     raise CustomNotFound("Projet non trouvé")
+        # return Project.objects.get(pk=project_id)
+        if not isinstance(project_id, int):
+            raise CustomBadRequest("L'ID du projet doit être un nombre entier")
         if not Project.objects.filter(pk=project_id).exists():
             raise CustomNotFound("Projet non trouvé")
-        return Project.objects.get(pk=project_id)
+        return project_id
 
     def validate_user_id(self, user_id):
         if user_id is None:
             raise CustomBadRequest("L'ID de l'utilisateur est requis")
+        # if not CustomUser.objects.filter(pk=user_id).exists():
+        #     raise CustomNotFound("Utilisateur non trouvé")
+        # return CustomUser.objects.get(pk=user_id)
+        if not isinstance(user_id, int):
+            raise CustomBadRequest("L'ID de l'utilisateur doit être un nombre entier")
         if not CustomUser.objects.filter(pk=user_id).exists():
             raise CustomNotFound("Utilisateur non trouvé")
-        return CustomUser.objects.get(pk=user_id)
+        return user_id
 
     def validate_issue_id(self, issue_id):
         if issue_id is None:

@@ -53,18 +53,25 @@ class IssueSerializer(serializers.ModelSerializer):
         model = Issue
         fields = ['id', 'title', 'project', 'description', 'assignee',
                   'priority', 'tag', 'status', 'author', 'created_time']
-        read_only_fields = ['project', 'author', 'created_time']
+        read_only_fields = ['author', 'created_time']  # 'project', 
 
-    def _get_project_id(self, data):
-        """
-        Return project ID whatever a creation or an update
-        """
-        if self.instance:  # maj
-            return self.instance.project.id
-        else:  # creation
-            # print(data)
+    # def create(self, validated_data):
+    #     project_id = self._get_project_id(validated_data)
 
-            return data.get('project')
+    #     return super().create(validated_data)
+
+    # def _get_project_id(self, data):
+    #     """
+    #     Return project ID whatever a creation or an update
+    #     """
+    #     if self.instance:  # maj
+    #         return self.instance.project.id
+    #     else:  # creation
+    #         print(data)
+    #     project = data.get('project')
+    #     if isinstance(project, Project):  # dans le cas ou c'est un objet Project
+    #         return project.id
+    #     return project
 
 
 class CommentSerializer(serializers.ModelSerializer):
