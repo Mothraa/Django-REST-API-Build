@@ -21,33 +21,45 @@ Cloner le repository
 git clone https://github.com/Mothraa/OCR_projet10.git
 ```
 
-Créer l'environnement avec [venv](https://docs.python.org/fr/3/library/venv.html)
+Créer l'environnement virtuel avec [pipenv](https://pipenv.pypa.io/en/latest/)
 
 ```bash
-python -m venv env
+pip install pipenv
+pipenv install
 ```
 
 Activer l'environnement
 
-- sous linux ou mac
-
 ```bash
-source env/bin/activate
+pipenv shell
 ```
 
-- sous windows
+Installer les packages
 
 ```bash
-env/scripts/activate
-```
-
-Utiliser le gestionnaire de package [pip](https://docs.python.org/fr/dev/installing/index.html) pour installer les librairies python
-
-```bash
-pip install -r requirements.txt
+pipenv install -r requirements.txt
 ```
 
 ## Utilisation
+
+:::note
+Uniquement si vous souhaitez repartir d'une base vierge et non de la base fournie en exemple
+
+- Création d'une base de donnée (vide)
+
+```bash
+cd src
+python manage.py db
+```
+
+- Génération et éxecution des scripts de migration
+
+```bash
+python manage.py makemigrations
+python manage.py migrate
+```
+
+:::
 
 - Démarrer le serveur en local :
 
