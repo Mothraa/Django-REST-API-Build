@@ -1,17 +1,16 @@
 from rest_framework.permissions import BasePermission
 
-from .models import Contributor
+from .models import Contributor, Project, Issue, Comment
 
 
 class IsMeOrAdmin(BasePermission):
     """
     Permission for the user or an admin (for ex : delete his own account)
     """
-
     def has_object_permission(self, request, view, obj):
         if request.user.is_staff:
             return True
-        return obj == request.user
+        return obj.author == request.user
 
 
 class IsProjectOwner(BasePermission):
@@ -28,10 +27,15 @@ class IsContributor(BasePermission):
     Check if the user is a contributor to the project
     """
     def has_object_permission(self, request, view, obj):
-        # On verifie si l'objet est une instance du projet
-        if hasattr(obj, 'project'):
+        # On recupère l'instance du projet en fonction du type d'objet source
+        if isinstance(obj, Comment):
+            project = obj.issue.project
+        elif isinstance(obj, Issue):
             project = obj.project
-        else:
+        elif isinstance(obj, Project):
             project = obj
+        else:
+            return False
 
+        # On regarde si l'utilisateur est contributeur du projet
         return Contributor.objects.filter(user=request.user, project=project).exists()

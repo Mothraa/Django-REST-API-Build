@@ -146,12 +146,18 @@ class ContributorViewSet(viewsets.ViewSet, ValidationMixin, ContributorMixin):
 
 class IssueViewSet(viewsets.ModelViewSet, ValidationMixin):
     serializer_class = IssueSerializer
-    permission_classes = [IsAuthenticated, IsContributor | IsAdminUser]
     throttle_classes = [CustomThrottle]
     filter_backends = [DjangoFilterBackend]
     http_method_names = ['get', 'post', 'put', 'delete']  # on n'authorise pas le PATCH
     filterset_class = IssueFilter
-    # filterset_fields = ['project']
+    filterset_fields = ['project']
+
+    def get_permissions(self):
+        if self.action in ['update', 'partial_update', 'destroy']:
+            permission_classes = [IsAuthenticated, IsMeOrAdmin]
+        else:
+            permission_classes = [IsAuthenticated, IsContributor | IsAdminUser]
+        return [permission() for permission in permission_classes]
 
     def get_queryset(self):
         user = self.request.user
@@ -168,8 +174,8 @@ class IssueViewSet(viewsets.ModelViewSet, ValidationMixin):
         # si pas d'assignation de l'issue, met par défaut le créateur
         assignee = serializer.validated_data.get('assignee', user)
 
-        project_id_validate = self.validate_project_id(project.id)
-        assignee_id_validate = self.validate_user_id(assignee.id)
+        project_id_validated = self.validate_project_id(project.id)
+        assignee_id_validated = self.validate_user_id(assignee.id)
 
         serializer.save(project=project, author=user, assignee=assignee)
 
@@ -182,11 +188,17 @@ class IssueViewSet(viewsets.ModelViewSet, ValidationMixin):
 
 class CommentViewSet(viewsets.ModelViewSet, ValidationMixin):
     serializer_class = CommentSerializer
-    permission_classes = [IsAuthenticated, IsContributor | IsAdminUser]
     throttle_classes = [CustomThrottle]
     filter_backends = [DjangoFilterBackend]
-    http_method_names = ['get', 'post', 'put', 'delete']  # on n'authorise pas le PATCH
     filterset_class = CommentFilter
+    http_method_names = ['get', 'post', 'put', 'delete']  # on n'authorise pas le PATCH
+
+    def get_permissions(self):
+        if self.action in ['update', 'partial_update', 'destroy']:
+            permission_classes = [IsAuthenticated, IsMeOrAdmin]
+        else:
+            permission_classes = [IsAuthenticated, IsContributor | IsAdminUser]
+        return [permission() for permission in permission_classes]
 
     def get_queryset(self):
         user = self.request.user

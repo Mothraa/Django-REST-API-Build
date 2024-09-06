@@ -36,6 +36,7 @@ class TokenBlacklistSerializer(serializers.Serializer):
 
 
 class ProjectSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = Project
         fields = ['id', 'name', 'description', 'type', 'author', 'created_time']
@@ -49,57 +50,36 @@ class ContributorSerializer(serializers.ModelSerializer):
 
 
 class IssueSerializer(serializers.ModelSerializer):
+    # project_details = ProjectSerializer(source='project', read_only=True)
+
     class Meta:
         model = Issue
         fields = ['id', 'title', 'project', 'description', 'assignee',
                   'priority', 'tag', 'status', 'author', 'created_time']
-        read_only_fields = ['author', 'created_time']  # 'project', 
-
-    # def create(self, validated_data):
-    #     project_id = self._get_project_id(validated_data)
-
-    #     return super().create(validated_data)
-
-    # def _get_project_id(self, data):
-    #     """
-    #     Return project ID whatever a creation or an update
-    #     """
-    #     if self.instance:  # maj
-    #         return self.instance.project.id
-    #     else:  # creation
-    #         print(data)
-    #     project = data.get('project')
-    #     if isinstance(project, Project):  # dans le cas ou c'est un objet Project
-    #         return project.id
-    #     return project
+        read_only_fields = ['author', 'created_time']
 
 
 class CommentSerializer(serializers.ModelSerializer):
+    # ajout du projet via une methode (champ non présent dans le model)
+    project = serializers.SerializerMethodField()
+
     class Meta:
         model = Comment
-        fields = ['id', 'description', 'issue', 'author', 'created_time']
-        read_only_fields = ['author', 'created_time']
+        fields = ['id', 'description', 'issue', 'project', 'author', 'created_time']
+        read_only_fields = ['id', 'issue', 'author', 'created_time']
+
+    def get_project(self, obj):
+        return {
+            "id": obj.issue.project.id,
+            "name": obj.issue.project.name,
+            "description": obj.issue.project.description
+        }
 
     def validate(self, data):
         # Dans le cas d'une mise à jour, pour remonter une exception sur la modif de l'ID issue
         # (le read_only_fields ne le fait pas tout seul)
-        if self.instance:
-            current_issue_id = self.instance.issue.id
-            new_issue_id = data.get('issue')
-
-            # on ne peut pas modifier l'ID de rattachement du commentaire a l'Issue
-            if new_issue_id and new_issue_id != current_issue_id:
-                raise CustomBadRequest("Le changement de l'ID de l'Issue n'est pas authorisé")
-
-        self._check_read_only_fields(data)
+        print(data)
+        if 'issue' in data:
+            raise CustomBadRequest("Le changement d'ID de l'Issue n'est pas authorisé")
 
         return data
-
-    def _check_read_only_fields(self, data):
-        """
-        Add an exception if try to add/update readonly fields + parent ID (Issue)
-        """
-        # TODO list a ajouter en param
-        for field in ['issue', 'author', 'created_time']:
-            if field in data:
-                raise CustomBadRequest(f"Vous ne pouvez pas changer le champ '{field}'.")
