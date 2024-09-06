@@ -40,10 +40,9 @@ Installer les packages
 pipenv install -r requirements.txt
 ```
 
-## Utilisation
+## Génération d'une base vierge
 
-:::note
-Uniquement si vous souhaitez repartir d'une base vierge et non de la base fournie en exemple
+(uniquement si vous ne souhaitez pas utiliser la base fournie en test)
 
 - Création d'une base de donnée (vide)
 
@@ -59,7 +58,7 @@ python manage.py makemigrations
 python manage.py migrate
 ```
 
-:::
+## Utilisation
 
 - Démarrer le serveur en local :
 
