@@ -174,8 +174,8 @@ class IssueViewSet(viewsets.ModelViewSet, ValidationMixin):
         # si pas d'assignation de l'issue, met par défaut le créateur
         assignee = serializer.validated_data.get('assignee', user)
 
-        project_id_validated = self.validate_project_id(project.id)
-        assignee_id_validated = self.validate_user_id(assignee.id)
+        self.validate_project_id(project.id)
+        self.validate_user_id(assignee.id)
 
         serializer.save(project=project, author=user, assignee=assignee)
 
