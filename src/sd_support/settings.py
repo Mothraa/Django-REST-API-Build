@@ -145,8 +145,6 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.AllowAny',
     ],
     'EXCEPTION_HANDLER': 'sd_api.exceptions.custom_exception_handler',
-    # 'DEFAULT_AUTHENTICATION_CLASSES': [
-    # ],
     'DEFAULT_THROTTLE_CLASSES': [
         'sd_api.throttles.CustomThrottle',
         'rest_framework.throttling.UserRateThrottle',
