@@ -40,4 +40,4 @@ assets/
 media/
 
 # databases
-# *.sqlite3 => allowed for example
+*.sqlite3 => allowed for example
