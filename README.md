@@ -42,8 +42,6 @@ pipenv install -r requirements.txt
 
 ## Génération d'une base vierge
 
-(uniquement si vous ne souhaitez pas utiliser la base fournie en test)
-
 - Création d'une base de donnée (vide)
 
 ```bash
@@ -78,8 +76,6 @@ La collection de requêtes utilisées lors du developpement est disponible sous 
 - [SQLite](https://www.sqlite.org/) : stockage des données via l'ORM de Django
 
 ## Documentation
-
-De manière exceptionnelle et a titre d'exemple, la base de donnée (.\db.sqlite3) est livré avec le repository.
 
 Il existe deux comptes (dont les accès sont disponibles dans la [collection postman](https://www.postman.com/mothraa/shared-workspace/overview/))
 La création de nouveaux comptes est possible via un compte administrateur.
