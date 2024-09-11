@@ -78,7 +78,6 @@ class CommentSerializer(serializers.ModelSerializer):
     def validate(self, data):
         # Dans le cas d'une mise à jour, pour remonter une exception sur la modif de l'ID issue
         # (le read_only_fields ne le fait pas tout seul)
-        print(data)
         if 'issue' in data:
             raise CustomBadRequest("Le changement d'ID de l'Issue n'est pas authorisé")
 
