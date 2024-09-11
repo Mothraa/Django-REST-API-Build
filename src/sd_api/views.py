@@ -29,12 +29,12 @@ class CustomUserViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action == 'create':
-            permission_classes = [IsAuthenticated, IsAdminUser]
+            self.permission_classes = [IsAuthenticated, IsAdminUser]
         elif self.action == 'destroy':
-            permission_classes = [IsAuthenticated, IsMeOrAdmin]
+            self.permission_classes = [IsAuthenticated, IsMeOrAdmin]
         else:
-            permission_classes = [IsAuthenticated]
-        return [permission() for permission in permission_classes]
+            self.permission_classes = [IsAuthenticated]
+        return [permission() for permission in self.permission_classes]
 
     def get_queryset(self):
         user = self.request.user
@@ -79,10 +79,10 @@ class ProjectViewSet(viewsets.ModelViewSet, ValidationMixin):
 
     def get_permissions(self):
         if self.action in ['update', 'partial_update', 'destroy']:
-            permission_classes = [IsAuthenticated, IsProjectOwner | IsAdminUser]
+            self.permission_classes = [IsAuthenticated, IsProjectOwner | IsAdminUser]
         else:
-            permission_classes = [IsAuthenticated, IsContributor | IsAdminUser | IsProjectOwner]
-        return [permission() for permission in permission_classes]
+            self.permission_classes = [IsAuthenticated, IsContributor | IsAdminUser | IsProjectOwner]
+        return [permission() for permission in self.permission_classes]
 
     def get_queryset(self):
         user = self.request.user
@@ -154,10 +154,10 @@ class IssueViewSet(viewsets.ModelViewSet, ValidationMixin):
 
     def get_permissions(self):
         if self.action in ['update', 'partial_update', 'destroy']:
-            permission_classes = [IsAuthenticated, IsMeOrAdmin]
+            self.permission_classes = [IsAuthenticated, IsMeOrAdmin]
         else:
-            permission_classes = [IsAuthenticated, IsContributor | IsAdminUser]
-        return [permission() for permission in permission_classes]
+            self.permission_classes = [IsAuthenticated, IsContributor | IsAdminUser]
+        return [permission() for permission in self.permission_classes]
 
     def get_queryset(self):
         user = self.request.user
@@ -168,7 +168,6 @@ class IssueViewSet(viewsets.ModelViewSet, ValidationMixin):
         return Issue.objects.filter(project__contributors__user=user)
 
     def perform_create(self, serializer):
-        print("Requête de données : ", self.request.data)
         user = self.request.user
         project = serializer.validated_data.get('project')
         # si pas d'assignation de l'issue, met par défaut le créateur
@@ -195,10 +194,10 @@ class CommentViewSet(viewsets.ModelViewSet, ValidationMixin):
 
     def get_permissions(self):
         if self.action in ['update', 'partial_update', 'destroy']:
-            permission_classes = [IsAuthenticated, IsMeOrAdmin]
+            self.permission_classes = [IsAuthenticated, IsMeOrAdmin]
         else:
-            permission_classes = [IsAuthenticated, IsContributor | IsAdminUser]
-        return [permission() for permission in permission_classes]
+            self.permission_classes = [IsAuthenticated, IsContributor | IsAdminUser]
+        return [permission() for permission in self.permission_classes]
 
     def get_queryset(self):
         user = self.request.user
